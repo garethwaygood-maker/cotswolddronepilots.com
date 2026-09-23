@@ -1,0 +1,42 @@
+name: Deploy CDP Website
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "site/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Show GitHub OIDC subject
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Ref: $GITHUB_REF"
+          echo "Ref name: $GITHUB_REF_NAME"
+          echo "Event: $GITHUB_EVENT_NAME"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::561945082889:role/GitHubActions-CDP-Website
+          aws-region: eu-west-2
+
+      - name: Deploy website to S3
+        run: |
+          aws s3 sync site/ s3://cdp.waygood.net \
+            --exclude "videos/*"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E1KGVMQIQNLZ21 \
+            --paths "/*"
